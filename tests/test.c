@@ -18,6 +18,10 @@
 /* GC.  It uses GC internals to allow more precise results      */
 /* checking for some of the tests.                              */
 
+# if defined(USM)
+#include "usm.h"
+# endif
+
 # ifdef HAVE_CONFIG_H
 #   include "private/config.h"
 # endif
@@ -1500,10 +1504,26 @@ void GC_CALLBACK warn_proc(char *msg, GC_word p)
 # include <rtems/confdefs.h>
   rtems_task Init(rtems_task_argument ignord)
 #else
-  int main(void)
+  int main(int argc, char *argv[])
 #endif
 {
     n_tests = 0;
+
+#   if defined(USM)
+        int ret;
+
+        if (argc > 1) {
+            printf("Not using USM...\n");
+        } else {
+            ret = usm_init();
+            if (ret) {
+                printf("Failed to initialize USM...\n");
+                return ret;
+            }
+            usm_printf("Using USM..\n");
+        }
+#   endif
+
 #   if defined(MACOS)
         /* Make sure we have lots and lots of stack space.      */
         SetMinimumStack(cMinStackSpace);
@@ -1750,12 +1770,28 @@ void * thr_run_one_test(void * arg GC_ATTR_UNUSED)
 #  define GC_free GC_debug_free
 #endif
 
-int main(void)
+int main(int argc, char *argv[])
 {
     pthread_t th[NTHREADS];
     pthread_attr_t attr;
     int code;
     int i;
+
+#   if defined(USM)
+        int ret;
+
+        if (argc > 1) {
+            printf("Not using USM...\n");
+        } else {
+            ret = usm_init();
+            if (ret) {
+                printf("Failed to initialize USM...\n");
+                return ret;
+            }
+            usm_printf("Using USM..\n");
+        }
+#   endif
+
 #   ifdef GC_IRIX_THREADS
         /* Force a larger stack to be preallocated      */
         /* Since the initial can't always grow later.   */

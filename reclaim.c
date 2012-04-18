@@ -20,6 +20,10 @@
 #  include "gc_disclaim.h"
 #endif
 
+#if defined(USM)
+#  include "usm.h"
+#endif
+
 #include <stdio.h>
 
 GC_INNER signed_word GC_bytes_found = 0;
@@ -299,6 +303,9 @@ GC_INNER ptr_t GC_reclaim_generic(struct hblk * hbp, hdr *hhdr, size_t sz,
 
     GC_ASSERT(GC_find_header((ptr_t)hbp) == hhdr);
 #   ifndef GC_DISABLE_INCREMENTAL
+#     if defined(USM) && defined(USM_DEBUG)
+        usm_printf("GC_reclaim_generic: %p, %d\n", hbp, 1);
+#     endif
       GC_remove_protection(hbp, 1, (hhdr)->hb_descr == 0 /* Pointer-free? */);
 #   endif
 #   ifdef ENABLE_DISCLAIM

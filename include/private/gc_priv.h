@@ -340,8 +340,14 @@ typedef char * ptr_t;   /* A generic pointer to which we can add        */
 /* OS interface routines         */
 /*                               */
 /*********************************/
+#if defined(USM)
 
-#ifdef BSD_TIME
+# define CLOCK_TYPE unsigned long
+# define GET_TIME(x) x = usm_clock()
+# define MS_TIME_DIFF(a,b) ((unsigned long)((a) - (b)))
+
+#elif defined(BSD_TIME) /* !USM && BSD_TIME */
+
 # undef CLOCK_TYPE
 # undef GET_TIME
 # undef MS_TIME_DIFF
@@ -361,7 +367,7 @@ typedef char * ptr_t;   /* A generic pointer to which we can add        */
 # define CLOCK_TYPE DWORD
 # define GET_TIME(x) x = GetTickCount()
 # define MS_TIME_DIFF(a,b) ((long)((a)-(b)))
-#else /* !MSWIN32, !MSWINCE, !BSD_TIME */
+#else /* !USM, !MSWIN32, !MSWINCE, !BSD_TIME */
 # include <time.h>
 # if defined(FREEBSD) && !defined(CLOCKS_PER_SEC)
 #   include <machine/limits.h>

@@ -16,6 +16,10 @@
 
 #include "private/gc_priv.h"
 
+#if defined(USM)
+# include "usm.h"
+#endif
+
 #if defined(LINUX) && !defined(POWERPC)
 # include <linux/version.h>
 # if (LINUX_VERSION_CODE <= 0x10400)
@@ -2962,6 +2966,64 @@ STATIC void GC_default_push_other_roots(void)
 #   include <signal.h>
 #   include <sys/syscall.h>
 
+#if defined(USM)
+
+static inline unsigned long usm_ticks(void)
+{
+   unsigned int a, d;
+   asm volatile("rdtsc" : "=a" (a), "=d" (d));
+   return ((unsigned long) a) | (((unsigned long) d) << 32);
+}
+
+/* Get the current time in milliseconds */
+unsigned long usm_clock(void)
+{
+   #define MILISECONDS 1000
+   #define CYCLES 2401000000ul
+
+   unsigned long t;
+
+   t = usm_ticks();
+   t *= MILISECONDS;
+   t /= CYCLES;
+
+   return t;
+}
+
+#if defined(USM_2)
+#   define PROTECT(addr, len) \
+        if (len == GC_page_size) { \
+          ptent_t *pte; \
+          usm_vm_lookup(pgroot, (void *) addr, 0, &pte); \
+          *pte &= ~PTE_W; \
+          usm_flush_tlb_one((void *) addr); \
+        } else { \
+          if (usm_vm_mprotect(pgroot, (caddr_t)(addr), (size_t)(len), \
+                       PERM_R \
+                       | (GC_pages_executable ? PERM_X : 0)) < 0) { \
+            ABORT("usm_vm_mprotect failed"); \
+          } \
+        }
+
+#else
+#   define PROTECT(addr, len) \
+        if (usm_vm_mprotect(pgroot, (caddr_t)(addr), (size_t)(len), \
+                     PERM_R \
+                     | (GC_pages_executable ? PERM_X : 0)) < 0) { \
+          ABORT("usm_vm_mprotect failed"); \
+        }
+
+#endif
+
+#   define UNPROTECT(addr, len) \
+        if (usm_vm_mprotect(pgroot, (caddr_t)(addr), (size_t)(len), \
+                     (PERM_R | PERM_W) \
+                     | (GC_pages_executable ? PERM_X : 0)) < 0) { \
+          ABORT(GC_pages_executable ? "un-usm_vm_mprotect executable page" \
+                                      " failed (probably disabled by OS)" : \
+                              "un-uvm_vm_mprotect failed"); \
+        }
+#else
 #   define PROTECT(addr, len) \
         if (mprotect((caddr_t)(addr), (size_t)(len), \
                      PROT_READ \
@@ -2976,6 +3038,7 @@ STATIC void GC_default_push_other_roots(void)
                                       " failed (probably disabled by OS)" : \
                               "un-mprotect failed"); \
         }
+#endif
 #   undef IGNORE_PAGES_EXECUTABLE
 
 # else /* USE_WINALLOC */
@@ -3131,7 +3194,11 @@ STATIC void GC_default_push_other_roots(void)
 #   ifndef NO_GETCONTEXT
 #     include <ucontext.h>
 #   endif
-    STATIC void GC_write_fault_handler(int sig, siginfo_t *si, void *raw_sc)
+#   if defined(USM)
+      STATIC void GC_write_fault_handler(uintptr_t addr, uint64_t fec)
+#   else
+      STATIC void GC_write_fault_handler(int sig, siginfo_t *si, void *raw_sc)
+#   endif
 # else
 #   define SIG_OK (exc_info -> ExceptionRecord -> ExceptionCode \
                      == STATUS_ACCESS_VIOLATION)
@@ -3141,6 +3208,50 @@ STATIC void GC_default_push_other_roots(void)
                                 struct _EXCEPTION_POINTERS *exc_info)
 # endif /* MSWIN32 || MSWINCE */
   {
+#if defined(USM)
+    unsigned i;
+
+    register struct hblk * h = (struct hblk *)((word)addr & ~(GC_page_size-1));
+
+    GC_bool in_allocd_block = (HDR(addr) != 0);
+    if (!in_allocd_block) {
+      return;
+    }
+#if defined(USM_DEBUG)
+    usm_printf("GC_write_fault_handler: %p, %d\n", h, GC_page_size);
+#endif
+
+#if defined(USM_2)
+    // USM_NOTE: no need to flush as in page fault handler,
+    // hardware already flushed
+    ptent_t *pte;
+    usm_vm_lookup(pgroot, (void *) addr, 0, &pte);
+    *pte |= PTE_P | PTE_W;
+#else
+    UNPROTECT(h, GC_page_size);
+#endif
+    /* We need to make sure that no collection occurs between       */
+    /* the UNPROTECT and the setting of the dirty bit.  Otherwise   */
+    /* a write by a third thread might go unnoticed.  Reversing     */
+    /* the order is just as bad, since we would end up unprotecting */
+    /* a page in a GC cycle during which it's not marked.           */
+    /* Currently we do this by disabling the thread stopping        */
+    /* signals while this handler is running.  An alternative might */
+    /* be to record the fact that we're about to unprotect, or      */
+    /* have just unprotected a page in the GC's thread structure,   */
+    /* and then to have the thread stopping code set the dirty      */
+    /* flag, if necessary.                                          */
+    for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
+        size_t index = PHT_HASH(h+i);
+
+        async_set_pht_entry_from_index(GC_dirty_pages, index);
+    }
+    /* The write may not take place before dirty bits are read.     */
+    /* But then we'll fault again ...                               */
+    return;
+  }
+
+#else /* !USM */
 #   if !defined(MSWIN32) && !defined(MSWINCE)
         char *addr = si -> si_addr;
 #   else
@@ -3250,6 +3361,7 @@ STATIC void GC_default_push_other_roots(void)
       ABORT("Unexpected bus error or segmentation fault");
 #   endif
   }
+#endif /* !USM */
 
 # ifdef GC_WIN32_THREADS
     GC_INNER void GC_set_write_fault_handler(void)
@@ -3291,10 +3403,56 @@ GC_INNER void GC_remove_protection(struct hblk *h, word nblocks,
             async_set_pht_entry_from_index(GC_dirty_pages, index);
         }
     }
-    UNPROTECT(h_trunc, (ptr_t)h_end - (ptr_t)h_trunc);
+#if defined(USM) && defined(USM_DEBUG)
+    usm_printf("GC_remove_protection: %p, %d\n", h_trunc,
+          (ptr_t)h_end - (ptr_t)h_trunc);
+#endif
+
+    int len = (ptr_t)h_end - (ptr_t)h_trunc;
+
+#if defined(USM) && defined(USM_2)
+    if (len == GC_page_size) {
+        ptent_t *pte;
+        usm_vm_lookup(pgroot, (void *) h_trunc, 0, &pte);
+        *pte |= PTE_P | PTE_W;
+        // USM_NOTE: flushing a single page instead of whole TLB gives us a
+        // 15-20% speed up!
+        usm_flush_tlb_one((void *) h_trunc);
+        // usm_flush_tlb();
+    } else if (len == 2 * GC_page_size) {
+        ptent_t *pte;
+
+        usm_vm_lookup(pgroot, (void *) h_trunc, 0, &pte);
+        *pte |= PTE_P | PTE_W;
+        usm_flush_tlb_one((void *) h_trunc);
+        
+        usm_vm_lookup(pgroot, (void *) h_trunc + GC_page_size, 0, &pte);
+        *pte |= PTE_P | PTE_W;
+        usm_flush_tlb_one((void *) h_trunc + GC_page_size);
+        
+        // USM_NOTE: no difference really between two tlb flushes
+        // Vs. a global flush, two 'seems' nicer though
+        // usm_flush_tlb();
+    } else {
+        UNPROTECT(h_trunc, len);
+    }
+#else
+    UNPROTECT(h_trunc, len);
+#endif
 }
 
 #if !defined(DARWIN)
+#if defined(USM)
+  GC_INNER void GC_dirty_init(void)
+  {
+    GC_dirty_maintained = TRUE;
+    if (GC_page_size % HBLKSIZE != 0) {
+        ABORT("Page size not multiple of HBLKSIZE");
+    }
+
+    usm_register_pgflt_handler(GC_write_fault_handler);
+  }
+#else
   GC_INNER void GC_dirty_init(void)
   {
 #   if !defined(MSWIN32) && !defined(MSWINCE)
@@ -3380,6 +3538,7 @@ GC_INNER void GC_remove_protection(struct hblk *h, word nblocks,
       /* FIXME: implement it (if possible). */
 #   endif
   }
+#endif /* !USM */
 #endif /* !DARWIN */
 
 GC_API int GC_CALL GC_incremental_protection_needs(void)
@@ -3411,6 +3570,9 @@ STATIC void GC_protect_heap(void)
         start = GC_heap_sects[i].hs_start;
         len = GC_heap_sects[i].hs_bytes;
         if (protect_all) {
+#       if defined(USM) && defined(USM_DEBUG)
+          usm_printf("PROTECT: %p, %d\n", start, len);
+#       endif
           PROTECT(start, len);
         } else {
           GC_ASSERT(PAGE_ALIGNED(len));
@@ -3443,6 +3605,10 @@ STATIC void GC_protect_heap(void)
             }
             if (is_ptrfree) {
               if ((word)current_start < (word)current) {
+#               if defined(USM) && defined(USM_DEBUG)
+                  usm_printf("PROTECT: %p, %d\n", current_start, (ptr_t)current -
+                      (ptr_t)current_start);
+#               endif
                 PROTECT(current_start, (ptr_t)current - (ptr_t)current_start);
               }
               current_start = (current += nhblks);
@@ -3451,6 +3617,10 @@ STATIC void GC_protect_heap(void)
             }
           }
           if ((word)current_start < (word)current) {
+#           if defined(USM) && defined(USM_DEBUG)
+              usm_printf("PROTECT: %p, %d\n", current_start, (ptr_t)current -
+                  (ptr_t)current_start);
+#           endif
             PROTECT(current_start, (ptr_t)current - (ptr_t)current_start);
           }
         }

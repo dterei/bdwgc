@@ -2,12 +2,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "gc.h"
+#include "usm.h"
 
 #define COUNT 10000000
 
-int main(void) {
+int main(int argc, char *argv[]) {
   int i;
   unsigned long last_heap_size = 0;
+	 int ret;
+
+	if (argc > 1) {
+		printf("Not using USM...\n");
+	} else {
+		ret = usm_init();
+		if (ret) {
+			printf("Failed to initialize USM...\n");
+			return ret;
+		}
+		usm_printf("Using USM..\n");
+	}
 
   GC_INIT();
 
