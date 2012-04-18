@@ -1,0 +1,62 @@
+# SETUP
+
+ 1. Get libatomic_ops from git://github.com/ivmai/libatomic_ops.git
+ 2. cd libatomic_ops
+ 3. ./configure --disable-option-checking --disable-shared --disable-threads
+ 4. make
+ 5. cd ..
+ 6. git clone market:~davidt/gc.git
+ 7. cd gc
+ 8. ln -s ../libatomic_ops libatomic_ops
+ 9. ln -s ../usm/user/libusm libusm
+10. autoreconf -vif
+11. automake --add-missing
+12. ./configure --disable-shared --disable-threads
+
+# RUNNING / BUILDING
+
+The build system supports 'easily' building the GC in USM and non USM without reconfiguring.
+
+USM build:
+$ make usm
+
+Normal build:
+$ make
+
+# TESTS
+
+USM   : $ make usm_gctest
+Normal: $ make gctest
+
+$ ./gctest
+
+# BENCHMARKS
+
+USM:
+$ make usm_bench
+OR
+$ make usm_gcbench
+$ make usm_sparse2
+
+Normal:
+$ make bench
+OR
+$ make gcbench
+$ make sparse2
+
+# CLEANING
+
+$ make clean
+$ make usm_clean # cleans benchmarks as well
+$ make bench_clean
+$ make gcbench_clean
+$ make sparse2_clean
+
+# BUILD SYSTEM
+
+* Please use the variable USM to determine if USM mode is enabled in code.
+* Use version numbers for different USM variations. Currently supported are:
+  * USM       : Direct port (no speed up)
+  * USM USM_2 : Use PTE direct, handle TLB (10% speed up)
+  * USM USM_3 : Dirty bit implementation
+
