@@ -232,7 +232,7 @@ int binaryTreeTest(void)
    int i, d;
    double *array;
 
-	printf("Creating and a big ass binary tree...\n");
+	printf("Creating a big ass binary tree...\n");
    
    printf(" Live storage will peak at %ld bytes.\n\n",
       2 * sizeof(Node0) * TreeSize(kLongLivedTreeDepth) +

@@ -14,6 +14,30 @@
 #  include "private/gc_priv.h"
 #endif
 
+#if !defined(USM)
+static inline unsigned long usm_get_ticks(void)
+{
+	unsigned int a, d;
+	asm volatile("rdtsc" : "=a" (a), "=d" (d));
+	return ((unsigned long) a) | (((unsigned long) d) << 32);
+}
+#endif
+
+/* Get the current time in milliseconds */
+unsigned long currentTime(void)
+{
+   #define MILISECONDS 1000
+   #define CYCLES 2401000000ul
+
+   unsigned long t;
+
+   t = usm_get_ticks();
+   t *= MILISECONDS;
+   t /= CYCLES;
+
+   return t;
+}
+
 static void TestInsert() {
   struct HashTable* ht;
   HTItem* bck;
@@ -94,7 +118,22 @@ int main(int argc, char** argv) {
 #     endif
 #  endif
 
+  long tStart, tFinish, size;
+
+  printf("\nGarbage Collector Test\n\n");
+  printf("Stressing a hash map...\n");
+  tStart = currentTime();
+
   TestInsert();
   TestFindOrInsert();
+
+  tFinish = currentTime();
+  size = GC_get_heap_size();
+
+  printf("Completed in %ld msec\n", tFinish - tStart);
+  printf("Completed %ld collections\n", GC_gc_no);
+  printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+
   return 0;
 }
+
