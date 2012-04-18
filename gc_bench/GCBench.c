@@ -166,7 +166,7 @@ static void TimeConstruction(int depth)
       tempTree = 0;
    }
    tFinish = currentTime();
-   printf("\tTop down construction took %d msec\n", tFinish - tStart);
+   printf("\tTop down construction took %ld msec\n", tFinish - tStart);
              
    tStart = currentTime();
    for (i = 0; i < iNumIters; ++i) {
@@ -174,7 +174,7 @@ static void TimeConstruction(int depth)
       tempTree = 0;
    }
    tFinish = currentTime();
-   printf("\tBottom up construction took %d msec\n", tFinish - tStart);
+   printf("\tBottom up construction took %ld msec\n", tFinish - tStart);
 }
 
 void init_gcbench(void)
@@ -205,28 +205,40 @@ void init_gcbench(void)
          GC_printf("Using DEFAULT_VDB dirty bit implementation\n");
 #     endif
 #  endif
+}
 
-   printf("Garbage Collector Test\n");
-   printf(" Live storage will peak at %d bytes.\n\n",
+int linkedListTest(void)
+{
+   long tStart, tFinish, size;
+
+	printf("Creating and folding many linked lists...\n");
+
+	tStart = currentTime();
+	runLL();
+	tFinish = currentTime();
+	size = GC_get_heap_size();
+
+   printf("Completed in %ld msec\n", tFinish - tStart);
+   printf("Completed %ld collections\n", GC_gc_no);
+   printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+
+	return 0;
+}
+
+int binaryTreeTest(void)
+{
+   Node root, longLivedTree, tempTree;
+   long tStart, tFinish, size;
+   int i, d;
+   double *array;
+
+	printf("Creating and a big ass binary tree...\n");
+   
+   printf(" Live storage will peak at %ld bytes.\n\n",
       2 * sizeof(Node0) * TreeSize(kLongLivedTreeDepth) +
       sizeof(double) * kArraySize);
    printf(" Stretching memory with a binary tree of depth %d\n",
       kStretchTreeDepth);
-}
-
-int main(int argc, char *argv[])
-{
-   Node root, longLivedTree, tempTree;
-   long tStart, tFinish;
-   int i, d;
-   double *array;
-   
-   init_gcbench();
-
-	if (argc > 1) {
-		runLL();
-		return 0;
-	}
 
    tStart = currentTime();
         
@@ -261,9 +273,27 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Failed\n");
 
    tFinish = currentTime();
-   printf("Completed in %d msec\n", tFinish - tStart);
-   printf("Completed %d collections\n", GC_gc_no);
-   printf("Heap size is %d\n", GC_get_heap_size());
+	size = GC_get_heap_size();
+
+   printf("Completed in %ld msec\n", tFinish - tStart);
+   printf("Completed %ld collections\n", GC_gc_no);
+   printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+
    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+	int r;
+   init_gcbench();
+   printf("\nGarbage Collector Test\n\n");
+
+	if (argc > 1) {
+		r = linkedListTest();
+	} else {
+		r = binaryTreeTest();
+	}
+
+	return r;
 }
 

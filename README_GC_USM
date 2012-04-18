@@ -32,6 +32,10 @@ $ ./gctest
 
 # BENCHMARKS
 
+* gcbench   : binary tree build, from Hans Boehm
+* gcbench 1 : multiple linked list build & fold. (David Terei)
+* sparse2   : Google C HashMaps. (Craig Silverstein)
+
 USM:
 $ make usm_bench
 OR
