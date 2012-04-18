@@ -1,6 +1,10 @@
 # Ignored files in bdwgc Git repo.
 
 TAGS
+gcbench
+gctest
+sparse2
+libusm
 
 # Binary files (in root dir, cord, src, tests):
 *.dll
