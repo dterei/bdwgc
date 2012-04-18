@@ -30,7 +30,7 @@ SUBDIRS =
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = \
     -I$(top_builddir)/include -I$(top_srcdir)/include \
-    $(ATOMIC_OPS_CFLAGS)
+    $(ATOMIC_OPS_CFLAGS) -I$(top_srcdir)/libusm
 
 # Initialize variables so that we can declare files locally.
 EXTRA_DIST =
@@ -92,7 +92,7 @@ endif
 
 # Include THREADDLLIBS here to ensure that the correct versions of
 # linuxthread semaphore functions get linked:
-libgc_la_LIBADD = @addobjs@ $(THREADDLLIBS) $(UNWINDLIBS) $(ATOMIC_OPS_LIBS)
+libgc_la_LIBADD = @addobjs@ $(THREADDLLIBS) $(UNWINDLIBS) $(ATOMIC_OPS_LIBS) -L./libusm -lusm
 libgc_la_DEPENDENCIES = @addobjs@
 libgc_la_LDFLAGS = $(extra_ldflags_libgc) -version-info 1:3:0 -no-undefined
 
@@ -191,6 +191,42 @@ EXTRA_DIST += tools/add_gc_prefix.c tools/gcname.c tools/if_mach.c \
 # it will not remove dest if building fails
 .S.s:
 	if $(CPP) $< >$@ ; then :; else rm -f $@; fi
+
+gcbench:
+	gcc $(AM_CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -I./include gc_bench/GCBench.c -c -o gcbench.o -DGC
+	$(LINK) gcbench.o $(test_ldadd) $(LIBS)
+
+gcbench_clean:
+	rm -f gcbench gcbench.o
+
+sparse2:
+	gcc $(AM_CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -I./include sparse/libchash.c -c -o libchash.o -DGC
+	gcc $(AM_CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -I./include sparse/example.c -c -o sparse.o -DGC
+	$(LINK) sparse.o libchash.o $(test_ldadd) $(LIBS)
+
+sparse2_clean:
+	rm -f sparse2 sparse.o libchash.o
+
+usm:
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM"
+
+usm_gctest:
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM" gctest
+
+usm_gcbench:
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM" gcbench
+
+usm_sparse2:
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM" sparse2
+
+.PHONY: usm_clean usm_bench bench bench_clean
+usm_clean: clean gcbench_clean sparse2_clean
+
+usm_bench: usm_gctest usm_gcbench usm_sparse2
+
+bench: gctest gcbench sparse2
+
+bench_clean: gcbench_clean sparse2_clean
 
 include include/include.am
 include cord/cord.am

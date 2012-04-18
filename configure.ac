@@ -884,6 +884,9 @@ AS_IF([test x"$with_libatomic_ops" = xno -a ! -e "$srcdir/libatomic_ops"],
                   your system, or fetch and unpack a recent version into the
                   source directory and link or rename it to libatomic_ops.]) ])
 
+AS_IF([test ! -e "$srcdir/libusm"],
+  [ AC_MSG_ERROR([libusm is required. You should symlink it.]) ])
+
 # Finally, emit the definitions for bundled or external AO.
 AC_MSG_CHECKING([which libatomic_ops to use])
 AS_IF([test x"$with_libatomic_ops" != xno],
