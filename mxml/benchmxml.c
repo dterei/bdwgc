@@ -41,6 +41,9 @@ int main(int argc, char *argv[])
    struct HashTable* hash;
    HTItem *hvalue;
 	long tStart, tFinish, size;
+#if defined(USM)
+	int ret;
+#endif
 
    if (argc != 3) {
       fputs("Usage: testmxml field filename.xml\n", stderr);
