@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxmldoc xmlns="http://www.easysw.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.minixml.org/mxmldoc.xsd">
+  <enumeration name="foo_enum2_e">
+    <description>Sample enumeration type #2</description>
+    <constant name="FOO2_BLUE">
+      <description>Blue fish #2</description>
+    </constant>
+    <constant name="FOO2_ONE">
+      <description>One fish #2</description>
+    </constant>
+    <constant name="FOO2_RED">
+      <description>Red fish #2</description>
+    </constant>
+    <constant name="FOO2_TWO">
+      <description>Two fish #2</description>
+    </constant>
+  </enumeration>
+  <typedef name="foo_enum2_t">
+    <type>enum foo_enum2_e</type>
+    <description>Sample enumeration type #2</description>
+  </typedef>
+  <enumeration name="foo_enum_e">
+    <description>Sample enumeration type</description>
+    <constant name="FOO_BLUE">
+      <description>Blue fish</description>
+    </constant>
+    <constant name="FOO_ONE">
+      <description>One fish</description>
+    </constant>
+    <constant name="FOO_RED">
+      <description>Red fish</description>
+    </constant>
+    <constant name="FOO_TWO">
+      <description>Two fish</description>
+    </constant>
+  </enumeration>
+  <typedef name="foo_enum_t">
+    <type>enum foo_enum_e</type>
+    <description>Sample enumeration type</description>
+  </typedef>
+</mxmldoc>
