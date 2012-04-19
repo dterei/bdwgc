@@ -1,0 +1,6 @@
+Makefile
+libmxml.a
+mxml.xml
+mxmldoc
+mxmldoc-static
+testmxml
