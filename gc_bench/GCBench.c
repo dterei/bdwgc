@@ -80,9 +80,9 @@ unsigned long currentTime(void)
    return t;
 }
 
-static const int kStretchTreeDepth   = 20; // about 16Mb (18)
-static const int kLongLivedTreeDepth = 22; // about 4Mb (16)
-static const int kArraySize = 8000000;     // about 4Mb (500000)
+static const int kStretchTreeDepth   = 18; // about 16Mb (18)
+static const int kLongLivedTreeDepth = 16; // about 4Mb (16)
+static const int kArraySize = 500000;     // about 4Mb (500000)
 static const int kMinTreeDepth = 4;        // (4)
 static const int kMaxTreeDepth = 16;       // (16)
 
