@@ -66,7 +66,7 @@
  * Do we have threading support?
  */
 
-#define HAVE_PTHREAD_H 1
+/* #undef HAVE_PTHREAD_H */
 
 
 /*
