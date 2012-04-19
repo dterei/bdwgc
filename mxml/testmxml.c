@@ -28,7 +28,6 @@
 
 #include "usm.h"
 #include "gc.h"
-#include "config.h"
 #include "mxml.h"
 #ifndef WIN32
 #  include <unistd.h>
@@ -66,7 +65,9 @@ main(int  argc,				/* I - Number of command-line args */
   int			i;		/* Looping var */
   FILE			*fp;		/* File to read */
   int			fd;		/* File descriptor */
+#if defined(USM)
   int   ret;
+#endif
   mxml_node_t		*tree,		/* XML tree */
 			*node;		/* Node which should be in test.xml */
   mxml_index_t		*ind;		/* XML index */
