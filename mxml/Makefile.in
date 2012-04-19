@@ -19,7 +19,7 @@
 #
 
 LINK         = libtool --tag=CC --mode=link
-USM_INCLUDES = -I../include -I../libusm
+USM_INCLUDES = -I../include -I../libusm -I../sparse/
 USM_LIBS     = -L.. -L../libusm -lusm -lgc
 USM          = $(USM_INCLUDES) $(USM_LIBS)
 AR		=	@AR@
@@ -91,8 +91,8 @@ DOCFILES	=	doc/0.gif doc/1.gif doc/2.gif doc/3.gif doc/4.gif \
 PUBLIBOBJS	=	mxml-attr.o mxml-entity.o mxml-file.o mxml-get.o \
 			mxml-index.o mxml-node.o mxml-search.o mxml-set.o
 LIBOBJS		=	$(PUBLIBOBJS) mxml-private.o mxml-string.o
-OBJS		=	mxmldoc.o testmxml.o $(LIBOBJS)
-TARGETS		=	$(LIBMXML) mxmldoc testmxml mxml.xml doc/mxml.man
+OBJS		=	mxmldoc.o benchmxml.o testmxml.o $(LIBOBJS)
+TARGETS		=	$(LIBMXML) mxmldoc testmxml benchmxml mxml.xml doc/mxml.man
 
 
 #
@@ -383,6 +383,11 @@ testmxml-vg:	$(LIBOBJS) testmxml.o
 
 testmxml.o:	mxml.h
 
+benchmxml: libmxml.a benchmxml.o ../libchash.o
+	echo Linking $@...
+	$(LINK) $(CC) $(LDFLAGS) -o $@ benchmxml.o ../libchash.o libmxml.a $(LIBS) $(USM)
+
+benchmxml.o: mxml.h ../libchash.o
 
 #
 # mxml.xml
