@@ -192,14 +192,14 @@ EXTRA_DIST += tools/add_gc_prefix.c tools/gcname.c tools/if_mach.c \
 .S.s:
 	if $(CPP) $< >$@ ; then :; else rm -f $@; fi
 
-gcbench:
+gcbench: gc_bench/GCBench.c
 	gcc $(AM_CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -I./include gc_bench/GCBench.c -c -o gcbench.o -DGC
 	$(LINK) gcbench.o $(test_ldadd) $(LIBS)
 
 gcbench_clean:
 	rm -f gcbench gcbench.o
 
-sparse2:
+sparse2: sparse/example.c sparse/libchash.c sparse/libchash.h
 	gcc $(AM_CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -I./include sparse/libchash.c -c -o libchash.o -DGC
 	gcc $(AM_CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -I./include sparse/example.c -c -o sparse.o -DGC
 	$(LINK) sparse.o libchash.o $(test_ldadd) $(LIBS)
@@ -207,17 +207,19 @@ sparse2:
 sparse2_clean:
 	rm -f sparse2 sparse.o libchash.o
 
+USM_VERSION=-DUSM_2
+
 usm:
-	$(MAKE) CFLAGS="$(CFLAGS) -DUSM"
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM $(USM_VERSION)"
 
 usm_gctest:
-	$(MAKE) CFLAGS="$(CFLAGS) -DUSM" gctest
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM $(USM_VERSION)" gctest
 
 usm_gcbench:
-	$(MAKE) CFLAGS="$(CFLAGS) -DUSM" gcbench
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM $(USM_VERSION)" gcbench
 
 usm_sparse2:
-	$(MAKE) CFLAGS="$(CFLAGS) -DUSM" sparse2
+	$(MAKE) CFLAGS="$(CFLAGS) -DUSM $(USM_VERSION)" sparse2
 
 .PHONY: usm_clean usm_bench bench bench_clean
 usm_clean: clean gcbench_clean sparse2_clean

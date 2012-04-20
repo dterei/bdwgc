@@ -216,11 +216,16 @@ int linkedListTest(void)
    tStart = currentTime();
    runLL();
    tFinish = currentTime();
-   size = GC_get_heap_size();
 
    printf("Completed in %ld msec\n", tFinish - tStart);
    printf("Completed %ld collections\n", GC_gc_no);
-   printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+
+   size = GC_get_total_bytes();
+   printf("\nTotal allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_heap_size();
+   printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_free_bytes();
+   printf("Free heap is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
 
    return 0;
 }
@@ -276,7 +281,7 @@ int binaryTreeTest(void)
    size = GC_get_heap_size();
 
    size = GC_get_total_bytes();
-   printf("Total allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   printf("\nTotal allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
    size = GC_get_heap_size();
    printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
    size = GC_get_free_bytes();
