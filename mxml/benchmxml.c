@@ -77,10 +77,7 @@ int main(int argc, char *argv[])
 {
    struct HashTable* hash;
 	long tStart, tFinish, size;
-	int i;
-#if defined(USM)
-	int ret;
-#endif
+	int i, ret;
 
    if (argc < 3) {
       fputs("Usage: testmxml field [filename.xml ...]\n", stderr);
@@ -95,7 +92,7 @@ int main(int argc, char *argv[])
    }
    usm_printf("Using USM..\n");
 #else
-   usm_printf("Not using USM..\n");
+   printf("Not using USM..\n");
 #endif
 
    GC_enable_incremental();
