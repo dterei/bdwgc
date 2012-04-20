@@ -64,12 +64,15 @@ int runonfile(char *term, HashTable *hash, char *file)
       }
    }
 
-   for (hvalue = HashFirstBucket(hash); hvalue != NULL;
-         hvalue = HashNextBucket(hash)) {
-      // printf("node: %s => %ld\n", (char *) hvalue->key, hvalue->data);
-   }
+   /* for (hvalue = HashFirstBucket(hash); hvalue != NULL; */
+   /*       hvalue = HashNextBucket(hash)) { */
+   /*    printf("node: %s => %ld\n", (char *) hvalue->key, hvalue->data); */
+   /* } */
 
 	mxmlDelete(tree);
+	/* GC_free(tree); */
+	tree = NULL;
+	GC_gcollect();
 	return 0;
 }
 
@@ -111,11 +114,16 @@ int main(int argc, char *argv[])
 	}
 
 	tFinish = currentTime();
-	size = GC_get_heap_size();
 
 	printf("Completed in %ld msec\n", tFinish - tStart);
 	printf("Completed %ld collections\n", GC_gc_no);
-	printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+
+	size = GC_get_total_bytes();
+	printf("Total allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+	size = GC_get_heap_size();
+	printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+	size = GC_get_free_bytes();
+	printf("Free heap is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
 
    return 0;
 }
