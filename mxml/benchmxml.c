@@ -33,43 +33,15 @@ unsigned long currentTime(void)
    return t;
 }
 
-int main(int argc, char *argv[])
+int runonfile(char *term, HashTable *hash, char *file)
 {
    FILE *fp;
    mxml_node_t *tree, *node;
    const char *value;
-   struct HashTable* hash;
    HTItem *hvalue;
-	long tStart, tFinish, size;
-#if defined(USM)
-	int ret;
-#endif
 
-   if (argc != 3) {
-      fputs("Usage: testmxml field filename.xml\n", stderr);
-      return (1);
-   }
-
-#if defined(USM)
-   ret = usm_init();
-   if (ret) {
-      printf("Failed to initialize USM...\n");
-      return ret;
-   }
-   usm_printf("Using USM..\n");
-#endif
-
-   GC_enable_incremental();
-   printf("Switched to incremental mode\n");
-
-	printf("\nGarbage Collector Test\n\n");
-	printf("Stressing a xml parser & hash map...\n");
-	tStart = currentTime();
-
-   if (argv[2][0] == '<')
-      tree = mxmlLoadString(NULL, argv[1], NULL);
-   else if ((fp = fopen(argv[2], "rb")) == NULL) {
-      perror(argv[2]);
+   if ((fp = fopen(file, "rb")) == NULL) {
+      perror(file);
       return (1);
    } else {
       // read the file
@@ -82,11 +54,9 @@ int main(int argc, char *argv[])
       return (1);
    }
 
-   hash = AllocateHashTable(0, 0);
-
-   for (node = mxmlFindElement(tree, tree, argv[1], NULL, NULL, MXML_DESCEND);
+   for (node = mxmlFindElement(tree, tree, term, NULL, NULL, MXML_DESCEND);
         node != NULL;
-        node = mxmlFindElement(node, tree, argv[1], NULL, NULL, MXML_DESCEND)) {
+        node = mxmlFindElement(node, tree, term, NULL, NULL, MXML_DESCEND)) {
       value = mxmlGetText(node, 0);
       hvalue = HashFindOrInsert(hash, (ulong) value, 0);     /* initialize to 0 */
       if (hvalue != NULL) {
@@ -98,6 +68,50 @@ int main(int argc, char *argv[])
          hvalue = HashNextBucket(hash)) {
       // printf("node: %s => %ld\n", (char *) hvalue->key, hvalue->data);
    }
+
+	mxmlDelete(tree);
+	return 0;
+}
+
+int main(int argc, char *argv[])
+{
+   struct HashTable* hash;
+	long tStart, tFinish, size;
+	int i;
+#if defined(USM)
+	int ret;
+#endif
+
+   if (argc < 3) {
+      fputs("Usage: testmxml field [filename.xml ...]\n", stderr);
+      return (1);
+   }
+
+#if defined(USM)
+   ret = usm_init();
+   if (ret) {
+      printf("Failed to initialize USM...\n");
+      return ret;
+   }
+   usm_printf("Using USM..\n");
+#else
+   usm_printf("Not using USM..\n");
+#endif
+
+   GC_enable_incremental();
+   printf("Switched to incremental mode\n");
+
+	printf("\nGarbage Collector Test\n\n");
+	printf("Stressing a xml parser & hash map...\n");
+	tStart = currentTime();
+
+   hash = AllocateHashTable(0, 1);
+	for (i = 2; i < argc; i++) {
+		ret = runonfile(argv[1], hash, argv[i]);
+		if (ret) {
+			return ret;
+		}
+	}
 
 	tFinish = currentTime();
 	size = GC_get_heap_size();
