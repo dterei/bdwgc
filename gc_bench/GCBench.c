@@ -278,7 +278,8 @@ int binaryTreeTest(void)
       fprintf(stderr, "Failed\n");
 
    tFinish = currentTime();
-   size = GC_get_heap_size();
+   printf("Completed in %ld msec\n", tFinish - tStart);
+   printf("Completed %ld collections\n", GC_gc_no);
 
    size = GC_get_total_bytes();
    printf("\nTotal allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
