@@ -59,9 +59,9 @@
 #if !defined(USM)
 static inline unsigned long usm_get_ticks(void)
 {
-	unsigned int a, d;
-	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-	return ((unsigned long) a) | (((unsigned long) d) << 32);
+   unsigned int a, d;
+   asm volatile("rdtsc" : "=a" (a), "=d" (d));
+   return ((unsigned long) a) | (((unsigned long) d) << 32);
 }
 #endif
 
@@ -211,18 +211,18 @@ int linkedListTest(void)
 {
    long tStart, tFinish, size;
 
-	printf("Creating and folding many linked lists...\n");
+   printf("Creating and folding many linked lists...\n");
 
-	tStart = currentTime();
-	runLL();
-	tFinish = currentTime();
-	size = GC_get_heap_size();
+   tStart = currentTime();
+   runLL();
+   tFinish = currentTime();
+   size = GC_get_heap_size();
 
    printf("Completed in %ld msec\n", tFinish - tStart);
    printf("Completed %ld collections\n", GC_gc_no);
    printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
 
-	return 0;
+   return 0;
 }
 
 int binaryTreeTest(void)
@@ -232,7 +232,7 @@ int binaryTreeTest(void)
    int i, d;
    double *array;
 
-	printf("Creating a big ass binary tree...\n");
+   printf("Creating a big ass binary tree...\n");
    
    printf(" Live storage will peak at %ld bytes.\n\n",
       2 * sizeof(Node0) * TreeSize(kLongLivedTreeDepth) +
@@ -273,27 +273,30 @@ int binaryTreeTest(void)
       fprintf(stderr, "Failed\n");
 
    tFinish = currentTime();
-	size = GC_get_heap_size();
+   size = GC_get_heap_size();
 
-   printf("Completed in %ld msec\n", tFinish - tStart);
-   printf("Completed %ld collections\n", GC_gc_no);
-   printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_total_bytes();
+   printf("Total allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_heap_size();
+   printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_free_bytes();
+   printf("Free heap is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
 
    return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	int r;
+   int r;
    init_gcbench();
    printf("\nGarbage Collector Test\n\n");
 
-	if (argc > 1) {
-		r = linkedListTest();
-	} else {
-		r = binaryTreeTest();
-	}
+   if (argc > 1) {
+      r = linkedListTest();
+   } else {
+      r = binaryTreeTest();
+   }
 
-	return r;
+   return r;
 }
 

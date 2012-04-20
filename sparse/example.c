@@ -17,9 +17,9 @@
 #if !defined(USM)
 static inline unsigned long usm_get_ticks(void)
 {
-	unsigned int a, d;
-	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-	return ((unsigned long) a) | (((unsigned long) d) << 32);
+   unsigned int a, d;
+   asm volatile("rdtsc" : "=a" (a), "=d" (d));
+   return ((unsigned long) a) | (((unsigned long) d) << 32);
 }
 #endif
 
@@ -67,16 +67,16 @@ static void TestFindOrInsert() {
   for (i = 0; i < iterations; ++i) {
     int key = rand() % range;
     HTItem* bck = HashFindOrInsert(ht, key, 0);     /* initialize to 0 */
-	 if (i % 10) {
-		bck->data = GC_MALLOC(sizeof(int) * 1000);
-	 } else if (i % 8) {
-		bck->data = 0;
-	 } else {
-	    int* p = bck->data;
+    if (i % 10) {
+      bck->data = GC_MALLOC(sizeof(int) * 1000);
+    } else if (i % 8) {
+      bck->data = 0;
+    } else {
+       int* p = bck->data;
        if (p != 0) {
-		   (*((int*) bck->data))++;                   /* found one more of them */
-		 }
-	 }
+         (*((int*) bck->data))++;                   /* found one more of them */
+       }
+    }
   }
 
   for (i = 0; i < range; ++i) {
@@ -128,11 +128,16 @@ int main(int argc, char** argv) {
   TestFindOrInsert();
 
   tFinish = currentTime();
-  size = GC_get_heap_size();
 
   printf("Completed in %ld msec\n", tFinish - tStart);
   printf("Completed %ld collections\n", GC_gc_no);
-  printf("Heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+
+  size = GC_get_total_bytes();
+  printf("Total allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+  size = GC_get_heap_size();
+  printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+  size = GC_get_free_bytes();
+  printf("Free heap is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
 
   return 0;
 }

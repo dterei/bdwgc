@@ -12,9 +12,9 @@
 #if !defined(USM)
 static inline unsigned long usm_get_ticks(void)
 {
-	unsigned int a, d;
-	asm volatile("rdtsc" : "=a" (a), "=d" (d));
-	return ((unsigned long) a) | (((unsigned long) d) << 32);
+   unsigned int a, d;
+   asm volatile("rdtsc" : "=a" (a), "=d" (d));
+   return ((unsigned long) a) | (((unsigned long) d) << 32);
 }
 #endif
 
@@ -69,18 +69,18 @@ int runonfile(char *term, HashTable *hash, char *file)
    /*    printf("node: %s => %ld\n", (char *) hvalue->key, hvalue->data); */
    /* } */
 
-	mxmlDelete(tree);
-	/* GC_free(tree); */
-	tree = NULL;
-	GC_gcollect();
-	return 0;
+   mxmlDelete(tree);
+   /* GC_free(tree); */
+   tree = NULL;
+   GC_gcollect();
+   return 0;
 }
 
 int main(int argc, char *argv[])
 {
    struct HashTable* hash;
-	long tStart, tFinish, size;
-	int i, ret;
+   long tStart, tFinish, size;
+   int i, ret;
 
    if (argc < 3) {
       fputs("Usage: testmxml field [filename.xml ...]\n", stderr);
@@ -101,29 +101,29 @@ int main(int argc, char *argv[])
    GC_enable_incremental();
    printf("Switched to incremental mode\n");
 
-	printf("\nGarbage Collector Test\n\n");
-	printf("Stressing a xml parser & hash map...\n");
-	tStart = currentTime();
+   printf("\nGarbage Collector Test\n\n");
+   printf("Stressing a xml parser & hash map...\n");
+   tStart = currentTime();
 
    hash = AllocateHashTable(0, 1);
-	for (i = 2; i < argc; i++) {
-		ret = runonfile(argv[1], hash, argv[i]);
-		if (ret) {
-			return ret;
-		}
-	}
+   for (i = 2; i < argc; i++) {
+      ret = runonfile(argv[1], hash, argv[i]);
+      if (ret) {
+         return ret;
+      }
+   }
 
-	tFinish = currentTime();
+   tFinish = currentTime();
 
-	printf("Completed in %ld msec\n", tFinish - tStart);
-	printf("Completed %ld collections\n", GC_gc_no);
+   printf("Completed in %ld msec\n", tFinish - tStart);
+   printf("Completed %ld collections\n", GC_gc_no);
 
-	size = GC_get_total_bytes();
-	printf("Total allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
-	size = GC_get_heap_size();
-	printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
-	size = GC_get_free_bytes();
-	printf("Free heap is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_total_bytes();
+   printf("Total allocated memory is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_heap_size();
+   printf("Current heap size is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
+   size = GC_get_free_bytes();
+   printf("Free heap is %ld bytes, %ld MB\n", size, size / (1024 * 1024));
 
    return 0;
 }
