@@ -5,6 +5,7 @@
 #include "gc.h"
 #include "mxml.h"
 #include <fcntl.h>
+#include <stdio.h>
 #ifndef O_BINARY
 #  define O_BINARY 0
 #endif
@@ -33,21 +34,43 @@ unsigned long currentTime(void)
    return t;
 }
 
-int runonfile(char *term, HashTable *hash, char *file)
+char* getFile(char *file)
 {
-   FILE *fp;
+	FILE *f;
+	char *buffer;
+	long size, got;
+	 
+	f = fopen(file, "rb");
+	if (f == NULL)
+		 return NULL;
+	 
+	fseek(f, 0L, SEEK_END);
+	size = ftell(f);
+	fseek(f, 0L, SEEK_SET);	
+	buffer = (char*) GC_malloc(size * sizeof(char));	
+	if (buffer == NULL)
+		 return NULL;
+	 
+	got = fread(buffer, sizeof(char), size, f);
+
+	if (got != size) {
+		got = ferror(f);
+		fclose(f);
+		if (got)
+			return NULL;
+	} else
+		fclose(f);
+
+	return buffer;
+}
+
+int runonstring(char *term, HashTable *hash, char *string)
+{
    mxml_node_t *tree, *node;
    const char *value;
    HTItem *hvalue;
 
-   if ((fp = fopen(file, "rb")) == NULL) {
-      perror(file);
-      return (1);
-   } else {
-      // read the file
-      tree = mxmlLoadFile(NULL, fp, NULL);
-      fclose(fp);
-   }
+	tree = mxmlLoadString(NULL, string, NULL);
 
    if (!tree) {
       fputs("Unable to read XML file!\n", stderr);
@@ -81,6 +104,7 @@ int main(int argc, char *argv[])
    struct HashTable* hash;
    long tStart, tFinish, size;
    int i, ret;
+	char *string;
 
    if (argc < 3) {
       fputs("Usage: testmxml field [filename.xml ...]\n", stderr);
@@ -103,11 +127,18 @@ int main(int argc, char *argv[])
 
    printf("\nGarbage Collector Test\n\n");
    printf("Stressing a xml parser & hash map...\n");
+
+	// load file first, I think read is slow under USM
+	if ((string = getFile(argv[2])) == NULL) {
+		printf("Error loading file!\n");
+		return 1;
+	}
+
    tStart = currentTime();
 
    hash = AllocateHashTable(0, 1);
    for (i = 2; i < argc; i++) {
-      ret = runonfile(argv[1], hash, argv[i]);
+      ret = runonstring(argv[1], hash, string);
       if (ret) {
          return ret;
       }
