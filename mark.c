@@ -255,6 +255,9 @@ GC_INNER void GC_clear_marks(void)
 GC_INNER void GC_initiate_gc(void)
 {
 #   ifndef GC_DISABLE_INCREMENTAL
+#     if defined(USM) && defined(USM_DEBUG)
+        printf("GC_initiate_gc\n");
+#     endif
         if (GC_dirty_maintained) GC_read_dirty();
 #   endif
 #   ifdef STUBBORN_ALLOC

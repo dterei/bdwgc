@@ -1509,45 +1509,17 @@ void GC_CALLBACK warn_proc(char *msg, GC_word p)
 {
     n_tests = 0;
 
-#   if defined(USM)
-        int ret;
-
-        if (argc > 1) {
-            printf("Not using USM...\n");
-        } else {
-            ret = usm_init();
-            if (ret) {
-                printf("Failed to initialize USM...\n");
-                return ret;
-            }
-            usm_printf("Using USM..\n");
-        }
-#   endif
-
 #   if defined(MACOS)
-        /* Make sure we have lots and lots of stack space.      */
-        SetMinimumStack(cMinStackSpace);
-        /* Cheat and let stdio initialize toolbox for us.       */
-        printf("Testing GC Macintosh port\n");
+      /* Make sure we have lots and lots of stack space.      */
+      SetMinimumStack(cMinStackSpace);
+      /* Cheat and let stdio initialize toolbox for us.       */
+      printf("Testing GC Macintosh port\n");
 #   endif
     GC_COND_INIT();
     GC_set_warn_proc(warn_proc);
-#   if (defined(MPROTECT_VDB) || defined(PROC_VDB) || defined(GWW_VDB)) \
-          && !defined(MAKE_BACK_GRAPH) && !defined(NO_INCREMENTAL)
-      GC_enable_incremental();
-      GC_printf("Switched to incremental mode\n");
-#     if defined(MPROTECT_VDB)
-        GC_printf("Emulating dirty bits with mprotect/signals\n");
-#     else
-#       ifdef PROC_VDB
-          GC_printf("Reading dirty bits from /proc\n");
-#       elif defined(GWW_VDB)
-          GC_printf("Using GetWriteWatch-based implementation\n");
-#       else
-          GC_printf("Using DEFAULT_VDB dirty bit implementation\n");
-#       endif
-#      endif
-#   endif
+
+    GC_enable_usm();
+
     run_one_test();
     check_heap_stats();
 #   ifndef MSWINCE

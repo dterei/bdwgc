@@ -2,7 +2,9 @@
 #if defined(USM)
 #include "usm.h"
 #endif
+#include "private/config.h"
 #include "gc.h"
+#include "private/gc_priv.h"
 #include "mxml.h"
 #include <fcntl.h>
 #include <stdio.h>
@@ -111,19 +113,7 @@ int main(int argc, char *argv[])
       return (1);
    }
 
-#if defined(USM)
-   ret = usm_init();
-   if (ret) {
-      printf("Failed to initialize USM...\n");
-      return ret;
-   }
-   usm_printf("Using USM..\n");
-#else
-   printf("Not using USM..\n");
-#endif
-
-   GC_enable_incremental();
-   printf("Switched to incremental mode\n");
+   GC_enable_usm();
 
    printf("\nGarbage Collector Test\n\n");
    printf("Stressing a xml parser & hash map...\n");

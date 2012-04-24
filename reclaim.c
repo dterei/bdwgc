@@ -304,7 +304,7 @@ GC_INNER ptr_t GC_reclaim_generic(struct hblk * hbp, hdr *hhdr, size_t sz,
     GC_ASSERT(GC_find_header((ptr_t)hbp) == hhdr);
 #   ifndef GC_DISABLE_INCREMENTAL
 #     if defined(USM) && defined(USM_DEBUG)
-        usm_printf("GC_reclaim_generic: %p, %d\n", hbp, 1);
+        printf("GC_reclaim_generic: %p\n", hbp);
 #     endif
       GC_remove_protection(hbp, 1, (hhdr)->hb_descr == 0 /* Pointer-free? */);
 #   endif

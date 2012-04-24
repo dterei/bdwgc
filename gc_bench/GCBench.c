@@ -177,36 +177,6 @@ static void TimeConstruction(int depth)
    printf("\tBottom up construction took %ld msec\n", tFinish - tStart);
 }
 
-void init_gcbench(void)
-{
-#if defined(USM)
-   int   ret;
-
-   ret = usm_init();
-   if (ret) {
-      printf("Failed to initialize USM...\n");
-      return ret;
-   }
-   usm_printf("Using USM..\n");
-#else
-   printf("Not using USM...\n");
-#endif
-
-   GC_enable_incremental();
-   GC_printf("Switched to incremental mode\n");
-#  if defined(MPROTECT_VDB)
-      GC_printf("Emulating dirty bits with mprotect/signals\n");
-#  else
-#     ifdef PROC_VDB
-         GC_printf("Reading dirty bits from /proc\n");
-#     elif defined(GWW_VDB)
-         GC_printf("Using GetWriteWatch-based implementation\n");
-#     else
-         GC_printf("Using DEFAULT_VDB dirty bit implementation\n");
-#     endif
-#  endif
-}
-
 int linkedListTest(void)
 {
    long tStart, tFinish, size;
@@ -294,7 +264,7 @@ int binaryTreeTest(void)
 int main(int argc, char *argv[])
 {
    int r;
-   init_gcbench();
+   GC_enable_usm();
    printf("\nGarbage Collector Test\n\n");
 
    if (argc > 1) {

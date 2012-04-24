@@ -627,6 +627,8 @@ GC_API void GC_CALL GC_enable(void);
 /* Safe to call before GC_INIT().  Includes a  GC_init() call.          */
 GC_API void GC_CALL GC_enable_incremental(void);
 
+GC_API void GC_CALL GC_enable_usm(void);
+
 /* Does incremental mode write-protect pages?  Returns zero or  */
 /* more of the following, or'ed together:                       */
 #define GC_PROTECTS_POINTER_HEAP  1 /* May protect non-atomic objs.     */

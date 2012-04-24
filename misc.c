@@ -1153,6 +1153,44 @@ GC_API void GC_CALL GC_enable_incremental(void)
   GC_init();
 }
 
+GC_API void GC_CALL GC_enable_usm(void)
+{
+#if defined(USM)
+  int   ret;
+
+  ret = usm_init();
+  if (ret) {
+    printf("Failed to initialize USM...\n");
+   return ret;
+  }
+  usm_printf("Using USM..\n");
+#else
+  printf("Not using USM...\n");
+#endif
+
+#if (defined(MPROTECT_VDB) || defined(PROC_VDB) || defined(GWW_VDB)) \
+     && !defined(MAKE_BACK_GRAPH) && !defined(NO_INCREMENTAL)
+   GC_enable_incremental();
+	GC_printf("Switched to incremental mode\n");
+#  if defined(MPROTECT_VDB)
+     GC_printf("Emulating dirty bits with mprotect/signals\n");
+#    if defined(TLB_VDB)
+       GC_printf("Controlling TLB shootdowns\n");
+#    endif
+#  else
+#    ifdef PROC_VDB
+       GC_printf("Reading dirty bits from /proc\n");
+#    elif defined(GWW_VDB)
+       GC_printf("Using GetWriteWatch-based implementation\n");
+#    else
+       GC_printf("Using DEFAULT_VDB dirty bit implementation\n");
+#    endif
+#  endif
+#else
+	GC_printf("Not using incremental mode\n");
+#endif
+}
+
 #if defined(MSWIN32) || defined(MSWINCE)
 
 # if defined(_MSC_VER) && defined(_DEBUG) && !defined(MSWINCE)

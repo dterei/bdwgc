@@ -142,6 +142,30 @@
 #define IGNORE_PAGES_EXECUTABLE 1
                         /* Undefined on GC_pages_executable real use.   */
 
+#if defined(USM)
+static inline unsigned long usm_ticks(void)
+{
+   unsigned int a, d;
+   asm volatile("rdtsc" : "=a" (a), "=d" (d));
+   return ((unsigned long) a) | (((unsigned long) d) << 32);
+}
+
+/* Get the current time in milliseconds */
+unsigned long usm_clock(void)
+{
+   #define MILISECONDS 1000
+   #define CYCLES 2401000000ul
+
+   unsigned long t;
+
+   t = usm_ticks();
+   t *= MILISECONDS;
+   t /= CYCLES;
+
+   return t;
+}
+#endif
+
 #ifdef NEED_PROC_MAPS
 /* We need to parse /proc/self/maps, either to find dynamic libraries,  */
 /* and/or to find the register backing store base (IA64).  Do it once   */
@@ -1575,17 +1599,13 @@ void GC_register_data_segments(void)
 
 # else /* !OS2 */
 
-# if defined(GWW_VDB)
+# if defined(GWW_VDB) && !defined(USM)
 #   ifndef MEM_WRITE_WATCH
 #     define MEM_WRITE_WATCH 0x200000
 #   endif
 #   ifndef WRITE_WATCH_FLAG_RESET
 #     define WRITE_WATCH_FLAG_RESET 1
 #   endif
-
-    /* Since we can't easily check whether ULONG_PTR and SIZE_T are     */
-    /* defined in Win32 basetsd.h, we define own ULONG_PTR.             */
-#   define GC_ULONG_PTR word
 
     typedef UINT (WINAPI * GetWriteWatch_type)(
                                 DWORD, PVOID, GC_ULONG_PTR /* SIZE_T */,
@@ -2720,7 +2740,53 @@ STATIC void GC_default_push_other_roots(void)
 
 #endif /* PROC_VDB || GWW_VDB */
 
-#ifdef GWW_VDB
+#if defined(GWW_VDB) && defined(USM)
+
+# define GC_GWW_AVAILABLE() TRUE
+
+  GC_INNER void GC_dirty_init(void)
+  {
+    GC_dirty_maintained = GC_GWW_AVAILABLE();
+  }
+
+  GC_INNER void GC_read_dirty(void)
+  {
+    size_t i;
+
+    BZERO(GC_grungy_pages, sizeof(GC_grungy_pages));
+
+    for (i = 0; i != GC_n_heap_sects; ++i) {
+      void *start = GC_heap_sects[i].hs_start;
+      void *end = start + GC_heap_sects[i].hs_bytes;
+      ptent_t *pte;
+
+      while (start < end) {
+        usm_vm_lookup(pgroot, start, 0, &pte);
+
+        if (*pte & PTE_D) {
+          *pte = *pte & ~PTE_D;
+          struct hblk * h     = (struct hblk *) start;
+          struct hblk * h_end = (struct hblk *) ((char *) h + GC_page_size);
+          do {
+            register word index = PHT_HASH(h);
+#           if defined(USM) && defined(USM_DEBUG)
+              printf("Setting dirty (GC_read_dirty): %d, %d, %p, %d\n",
+                 i, j, h, index);
+#           endif
+            set_pht_entry_from_index(GC_grungy_pages, index);
+          } while ((word)(++h) < (word)h_end);
+        }
+
+        start += GC_page_size;
+      }
+    }
+
+    usm_flush_tlb();
+
+    GC_or_pages(GC_written_pages, GC_grungy_pages);
+  }
+
+#elif defined(GWW_VDB)
 
 # define GC_GWW_BUF_LEN (MAXHINCR * HBLKSIZE / 4096 /* X86 page size */)
   /* Still susceptible to overflow, if there are very large allocations, */
@@ -2968,28 +3034,6 @@ STATIC void GC_default_push_other_roots(void)
 
 #if defined(USM)
 
-static inline unsigned long usm_ticks(void)
-{
-   unsigned int a, d;
-   asm volatile("rdtsc" : "=a" (a), "=d" (d));
-   return ((unsigned long) a) | (((unsigned long) d) << 32);
-}
-
-/* Get the current time in milliseconds */
-unsigned long usm_clock(void)
-{
-   #define MILISECONDS 1000
-   #define CYCLES 2401000000ul
-
-   unsigned long t;
-
-   t = usm_ticks();
-   t *= MILISECONDS;
-   t /= CYCLES;
-
-   return t;
-}
-
 #if defined(USM_2)
 #   define PROTECT(addr, len) \
         if (len == GC_page_size) { \
@@ -3004,7 +3048,6 @@ unsigned long usm_clock(void)
             ABORT("usm_vm_mprotect failed"); \
           } \
         }
-
 #else
 #   define PROTECT(addr, len) \
         if (usm_vm_mprotect(pgroot, (caddr_t)(addr), (size_t)(len), \
@@ -3012,7 +3055,6 @@ unsigned long usm_clock(void)
                      | (GC_pages_executable ? PERM_X : 0)) < 0) { \
           ABORT("usm_vm_mprotect failed"); \
         }
-
 #endif
 
 #   define UNPROTECT(addr, len) \
@@ -3244,6 +3286,10 @@ unsigned long usm_clock(void)
     for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
         size_t index = PHT_HASH(h+i);
 
+#       if defined(USM) && defined(USM_DEBUG)
+          printf("Setting dirty (GC_write_fault_handler): %d, %p, %d\n",
+             i,h, index);
+#       endif
         async_set_pht_entry_from_index(GC_dirty_pages, index);
     }
     /* The write may not take place before dirty bits are read.     */
@@ -3400,6 +3446,10 @@ GC_INNER void GC_remove_protection(struct hblk *h, word nblocks,
         size_t index = PHT_HASH(current);
         if (!is_ptrfree || (word)current < (word)h
             || (word)current >= (word)(h + nblocks)) {
+#           if defined(USM) && defined(USM_DEBUG)
+              printf("Setting dirty (GC_remove_protection): %p, %d\n",
+                 current, index);
+#           endif
             async_set_pht_entry_from_index(GC_dirty_pages, index);
         }
     }

@@ -2143,7 +2143,14 @@
 #       define OS_TYPE "LINUX"
 #       define LINUX_STACKBOTTOM
 #       if !defined(GC_LINUX_THREADS) || !defined(REDIRECT_MALLOC)
-#           define MPROTECT_VDB
+#           if defined(USM_3)
+#             define GWW_VDB
+#           else
+#             define MPROTECT_VDB
+#             if defined(USM_2)
+#               define TLB_VDB
+#             endif
+#           endif
 #       else
             /* We seem to get random errors in incremental mode,        */
             /* possibly because Linux threads is itself a malloc client */

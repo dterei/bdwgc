@@ -804,6 +804,9 @@ GC_allochblk_nth(size_t sz, int kind, unsigned flags, int n, int may_split)
         /* blocks are treated as dirty.  Necessary since we don't       */
         /* protect free blocks.                                         */
         GC_ASSERT((size_needed & (HBLKSIZE-1)) == 0);
+#       if defined(USM) && defined(USM_DEBUG)
+          printf("GC_allochblk_nth: %d\n", size_needed);
+#       endif
         GC_remove_protection(hbp, divHBLKSZ(size_needed),
                              (hhdr -> hb_descr == 0) /* pointer-free */);
 #   endif
