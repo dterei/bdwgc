@@ -32,9 +32,10 @@ $ ./gctest
 
 # BENCHMARKS
 
-* gcbench   : binary tree build, from Hans Boehm
+* gcbench   : binary tree build (Hans Boehm)
 * gcbench 1 : multiple linked list build & fold. (David Terei)
 * sparse2   : Google C HashMaps. (Craig Silverstein)
+* benchmxml : XML Parser. (MXML Library) (David Terei)
 
 USM:
 $ make usm_bench
@@ -48,6 +49,17 @@ OR
 $ make gcbench
 $ make sparse2
 
+## benchmxml
+
+This is a little trickier to build. Do the following:
+
+$ cd mxml
+$ make clean
+$ make benchmxml
+$ LD_PRELOAD=<libc path> ./benchmxml LastName medline12n0668.xml
+
+It will run or not run in USM depending on if you built GC in USM mode.
+
 # CLEANING
 
 $ make clean
@@ -55,6 +67,7 @@ $ make usm_clean # cleans benchmarks as well
 $ make bench_clean
 $ make gcbench_clean
 $ make sparse2_clean
+$ cd mxml; make clean
 
 # BUILD SYSTEM
 
@@ -63,4 +76,8 @@ $ make sparse2_clean
   * USM       : Direct port (no speed up)
   * USM USM_2 : Use PTE direct, handle TLB (10% speed up)
   * USM USM_3 : Dirty bit implementation
+
+To change this, edit the Makefile in the root directory and change the
+``USM_VERSION`` variable on line 2025. Any method to set the CPP def should
+work though.
 
