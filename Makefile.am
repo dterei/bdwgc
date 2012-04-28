@@ -207,7 +207,7 @@ sparse2: sparse/example.c sparse/libchash.c sparse/libchash.h
 sparse2_clean:
 	rm -f sparse2 sparse.o libchash.o
 
-USM_VERSION=-DUSM_2
+USM_VERSION=$(USM_VERSION)
 
 usm:
 	$(MAKE) CFLAGS="$(CFLAGS) -DUSM $(USM_VERSION)"

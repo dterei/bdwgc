@@ -1,11 +1,13 @@
 #!/bin/bash
 
-FILE=usm-numbers.log
+FILE=usm-tlb-numbers.log
 GLIB=`pwd`/eglibc-build/libc.so.6
 
 make clean
 make sparse2_clean
 make bench_clean
+
+export USM_VERSION=-DUSM_2
 
 make usm
 make usm_gctest
@@ -19,6 +21,7 @@ cd ..
 clear
 echo "Done building, waiting 10 seconds for shit to cool down..."
 echo "Logging benchmark numbers to ${FILE}"
+echo "Using libc ${GLIB}"
 sleep 10
 
 echo "Running gcbench"
@@ -40,4 +43,5 @@ echo "Running mxml"
 LD_PRELOAD=${GLIB} ./mxml/benchmxml LastName ./mxml/medline12n0668.xml >> ${FILE}
 
 echo "DONE! (check file ${FILE} for results)"
+
 
