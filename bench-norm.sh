@@ -1,24 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 
 FILE=normal-numbers.log
 
-git clone git://github.com/ivmai/libatomic_ops.git
-cd libatomic_ops
-./configure --disable-option-checking --disable-shared --disable-threads
-make
-
-cd ..
-autoreconf -vif
-automake --add-missing
 make clean
+make sparse2_clean
 make bench_clean
-./configure --disable-shared --disable-threads
 
 make
 make gctest
 make bench
 
 cd mxml
+make clean
 make benchmxml
 cd ..
 
