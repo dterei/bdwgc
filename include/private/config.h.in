@@ -15,6 +15,9 @@
 /* Define to enable support for DB/UX threads. */
 #undef DGUX_THREADS
 
+/* use dune features with gc. */
+#undef DUNE
+
 /* Define to enable eCos target support. */
 #undef ECOS
 

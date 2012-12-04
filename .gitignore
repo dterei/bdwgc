@@ -11,6 +11,7 @@
 *.o
 *.obj
 
+/dune
 /*.gc.log
 /.deps/
 /.libs/

@@ -44,6 +44,18 @@ AC_PROG_INSTALL
 GC_CFLAGS=${gc_cflags}
 AC_SUBST(GC_CFLAGS)
 
+dnl Use the DUNE kernel module & libDune API?
+AC_ARG_ENABLE(dune,
+  [AC_HELP_STRING([--enable-dune], [dune kernel module and libDune api])])
+AM_CONDITIONAL(DUNE, test "${enable_dune}" = yes)
+if test "${enable_dune}" = yes; then
+  AC_DEFINE([DUNE], dune, [use dune features with gc.])
+  DUNE_CFLAGS='-I$(top_builddir)/dune/libdune'
+  DUNE_LDFLAGS="-Ldune/libdune/ -ldune"
+  AC_SUBST([DUNE_CFLAGS])
+  AC_SUBST([DUNE_LDFLAGS])
+fi
+
 AC_ARG_ENABLE(threads,
   [AC_HELP_STRING([--enable-threads=TYPE], [choose threading package])],
   THREADS=$enableval,

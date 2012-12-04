@@ -35,7 +35,8 @@ SUBDIRS =
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = \
 	-I$(top_builddir)/include -I$(top_srcdir)/include \
-	$(ATOMIC_OPS_CFLAGS)
+	$(ATOMIC_OPS_CFLAGS) $(DUNE_CFLAGS)
+AM_LDFLAGS = $(DUNE_LDFLAGS)
 
 # Initialize variables so that we can declare files locally.
 EXTRA_DIST =
