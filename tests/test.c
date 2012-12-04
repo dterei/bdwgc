@@ -24,6 +24,10 @@
 
 # undef GC_BUILD
 
+#if defined(DUNE)
+#include "dune.h"
+#endif
+
 #if (defined(DBG_HDRS_ALL) || defined(MAKE_BACK_GRAPH)) && !defined(GC_DEBUG)
 #  define GC_DEBUG
 #endif
@@ -1450,6 +1454,15 @@ void GC_CALLBACK warn_proc(char *msg, GC_word p)
 #endif
 {
     n_tests = 0;
+
+#   if defined(DUNE)
+      int r;
+      printf("Using DUNE\n");
+		if ((r = dune_init_and_enter())) {
+        printf("Failed to initialize DUNE...\n");
+		  return r;
+		}
+#   endif
 #   if defined(MACOS)
         /* Make sure we have lots and lots of stack space.      */
         SetMinimumStack(cMinStackSpace);
@@ -1704,6 +1717,13 @@ int main(void)
         /* Since the initial can't always grow later.   */
         *((volatile char *)&code - 1024*1024) = 0;      /* Require 1 MB */
 #   endif /* GC_IRIX_THREADS */
+#   if defined(DUNE)
+      printf("Using DUNE\n");
+		if ((i = dune_init_and_enter())) {
+        printf("Failed to initialize DUNE...\n");
+		  return i;
+		}
+#   endif
 #   if defined(GC_HPUX_THREADS)
         /* Default stack size is too small, especially with the 64 bit ABI */
         /* Increase it.                                                    */

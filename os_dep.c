@@ -16,6 +16,10 @@
 
 #include "private/gc_priv.h"
 
+#if defined(DUNE)
+#include "dune.h"
+#endif
+
 #if defined(LINUX) && !defined(POWERPC)
 # include <linux/version.h>
 # if (LINUX_VERSION_CODE <= 0x10400)
@@ -2929,20 +2933,38 @@ STATIC void GC_default_push_other_roots(void)
 #   include <signal.h>
 #   include <sys/syscall.h>
 
-#   define PROTECT(addr, len) \
-        if (mprotect((caddr_t)(addr), (size_t)(len), \
-                     PROT_READ \
-                     | (GC_pages_executable ? PROT_EXEC : 0)) < 0) { \
-          ABORT("mprotect failed"); \
-        }
-#   define UNPROTECT(addr, len) \
-        if (mprotect((caddr_t)(addr), (size_t)(len), \
-                     (PROT_READ | PROT_WRITE) \
-                     | (GC_pages_executable ? PROT_EXEC : 0)) < 0) { \
-          ABORT(GC_pages_executable ? "un-mprotect executable page" \
-                                      " failed (probably disabled by OS)" : \
-                              "un-mprotect failed"); \
-        }
+#   if defined(DUNE)
+#       define PROTECT(addr, len) \
+            if (dune_vm_mprotect(pgroot, (caddr_t)(addr), (size_t)(len), \
+                                 PERM_R \
+                                 | (GC_pages_executable ? PERM_X : 0)) < 0) { \
+              ABORT("dune_vm_mprotect failed"); \
+            }
+#       define UNPROTECT(addr, len) \
+            if (dune_vm_mprotect(pgroot, (caddr_t)(addr), (size_t)(len), \
+                         (PERM_R | PERM_W) \
+                         | (GC_pages_executable ? PERM_X : 0)) < 0) { \
+              ABORT(GC_pages_executable ? "un-dune_vm_mprotect executable page" \
+                                          " failed (probably disabled by OS)" : \
+                                  "un-dune_vm_mprotect failed"); \
+            }
+#   else
+#       define PROTECT(addr, len) \
+            if (mprotect((caddr_t)(addr), (size_t)(len), \
+                         PROT_READ \
+                         | (GC_pages_executable ? PROT_EXEC : 0)) < 0) { \
+              ABORT("mprotect failed"); \
+            }
+#       define UNPROTECT(addr, len) \
+            if (mprotect((caddr_t)(addr), (size_t)(len), \
+                         (PROT_READ | PROT_WRITE) \
+                         | (GC_pages_executable ? PROT_EXEC : 0)) < 0) { \
+              ABORT(GC_pages_executable ? "un-mprotect executable page" \
+                                          " failed (probably disabled by OS)" : \
+                                  "un-mprotect failed"); \
+            }
+#   endif
+
 #   undef IGNORE_PAGES_EXECUTABLE
 
 # else /* MSWIN32 */
@@ -3099,7 +3121,11 @@ STATIC void GC_default_push_other_roots(void)
 #     include <ucontext.h>
 #   endif
     /*ARGSUSED*/
-    STATIC void GC_write_fault_handler(int sig, siginfo_t *si, void *raw_sc)
+#   if defined(DUNE)
+      STATIC void GC_write_fault_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
+#   else
+      STATIC void GC_write_fault_handler(int sig, siginfo_t *si, void *raw_sc)
+#   endif
 # else
 #   define SIG_OK (exc_info -> ExceptionRecord -> ExceptionCode \
                      == STATUS_ACCESS_VIOLATION)
@@ -3109,113 +3135,135 @@ STATIC void GC_default_push_other_roots(void)
                                 struct _EXCEPTION_POINTERS *exc_info)
 # endif /* MSWIN32 || MSWINCE */
   {
-#   if !defined(MSWIN32) && !defined(MSWINCE)
-        char *addr = si -> si_addr;
-#   else
-        char * addr = (char *) (exc_info -> ExceptionRecord
-                                -> ExceptionInformation[1]);
-#   endif
-    unsigned i;
+#   if defined(DUNE)
+      unsigned i;
 
-    if (SIG_OK && CODE_OK) {
-        register struct hblk * h =
-                        (struct hblk *)((word)addr & ~(GC_page_size-1));
-        GC_bool in_allocd_block;
-#       ifdef CHECKSUMS
-          GC_record_fault(h);
-#       endif
+      register struct hblk * h = (struct hblk *)((word)addr & ~(GC_page_size-1));
+#     ifdef CHECKSUMS
+        GC_record_fault(h);
+#     endif
 
-#       ifdef SUNOS5SIGS
-            /* Address is only within the correct physical page.        */
-            in_allocd_block = FALSE;
-            for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
-              if (HDR(h+i) != 0) {
-                in_allocd_block = TRUE;
-                break;
-              }
-            }
-#       else
-            in_allocd_block = (HDR(addr) != 0);
-#       endif
-        if (!in_allocd_block) {
-            /* FIXME - We should make sure that we invoke the   */
-            /* old handler with the appropriate calling         */
-            /* sequence, which often depends on SA_SIGINFO.     */
+      GC_bool in_allocd_block = (HDR(addr) != 0);
+      if (!in_allocd_block) {
+          return;
+      }
+      UNPROTECT(h, GC_page_size);
+      for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
+          size_t index = PHT_HASH(h+i);
 
-            /* Heap blocks now begin and end on page boundaries */
-            SIG_HNDLR_PTR old_handler;
+          async_set_pht_entry_from_index(GC_dirty_pages, index);
+      }
+      return;
 
-#           if defined(MSWIN32) || defined(MSWINCE)
-                old_handler = GC_old_segv_handler;
-#           else
-                GC_bool used_si;
+#   else /* !DUNE */
+#     if !defined(MSWIN32) && !defined(MSWINCE)
+          char *addr = si -> si_addr;
+#     else
+          char * addr = (char *) (exc_info -> ExceptionRecord
+                                  -> ExceptionInformation[1]);
+#     endif
+      unsigned i;
 
-                if (sig == SIGSEGV) {
-                   old_handler = GC_old_segv_handler;
-                   used_si = GC_old_segv_handler_used_si;
-                } else {
-                   old_handler = GC_old_bus_handler;
-                   used_si = GC_old_bus_handler_used_si;
+      if (SIG_OK && CODE_OK) {
+          register struct hblk * h =
+                          (struct hblk *)((word)addr & ~(GC_page_size-1));
+          GC_bool in_allocd_block;
+#         ifdef CHECKSUMS
+            GC_record_fault(h);
+#         endif
+
+#         ifdef SUNOS5SIGS
+              /* Address is only within the correct physical page.        */
+              in_allocd_block = FALSE;
+              for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
+                if (HDR(h+i) != 0) {
+                  in_allocd_block = TRUE;
+                  break;
                 }
-#           endif
+              }
+#         else
+              in_allocd_block = (HDR(addr) != 0);
+#         endif
+          if (!in_allocd_block) {
+              /* FIXME - We should make sure that we invoke the   */
+              /* old handler with the appropriate calling         */
+              /* sequence, which often depends on SA_SIGINFO.     */
 
-            if (old_handler == (SIG_HNDLR_PTR)SIG_DFL) {
-#               if !defined(MSWIN32) && !defined(MSWINCE)
-                    if (GC_print_stats)
-                      GC_log_printf("Unexpected segfault at %p\n", addr);
-                    ABORT("Unexpected bus error or segmentation fault");
-#               else
-                    return(EXCEPTION_CONTINUE_SEARCH);
-#               endif
-            } else {
-                /*
-                 * FIXME: This code should probably check if the
-                 * old signal handler used the traditional style and
-                 * if so call it using that style.
-                 */
-#               if defined(MSWIN32) || defined(MSWINCE)
-                    return((*old_handler)(exc_info));
-#               else
-                    if (used_si)
-                      ((SIG_HNDLR_PTR)old_handler) (sig, si, raw_sc);
-                    else
-                      /* FIXME: should pass nonstandard args as well. */
-                      ((PLAIN_HNDLR_PTR)old_handler) (sig);
-                    return;
-#               endif
-            }
-        }
-        UNPROTECT(h, GC_page_size);
-        /* We need to make sure that no collection occurs between       */
-        /* the UNPROTECT and the setting of the dirty bit.  Otherwise   */
-        /* a write by a third thread might go unnoticed.  Reversing     */
-        /* the order is just as bad, since we would end up unprotecting */
-        /* a page in a GC cycle during which it's not marked.           */
-        /* Currently we do this by disabling the thread stopping        */
-        /* signals while this handler is running.  An alternative might */
-        /* be to record the fact that we're about to unprotect, or      */
-        /* have just unprotected a page in the GC's thread structure,   */
-        /* and then to have the thread stopping code set the dirty      */
-        /* flag, if necessary.                                          */
-        for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
-            size_t index = PHT_HASH(h+i);
+              /* Heap blocks now begin and end on page boundaries */
+              SIG_HNDLR_PTR old_handler;
 
-            async_set_pht_entry_from_index(GC_dirty_pages, index);
-        }
-        /* The write may not take place before dirty bits are read.     */
-        /* But then we'll fault again ...                               */
-#       if defined(MSWIN32) || defined(MSWINCE)
-            return(EXCEPTION_CONTINUE_EXECUTION);
-#       else
-            return;
-#       endif
-    }
-#   if defined(MSWIN32) || defined(MSWINCE)
-      return EXCEPTION_CONTINUE_SEARCH;
-#   else
-      if (GC_print_stats)
-        GC_log_printf("Unexpected segfault at %p\n", addr);
-      ABORT("Unexpected bus error or segmentation fault");
+#             if defined(MSWIN32) || defined(MSWINCE)
+                  old_handler = GC_old_segv_handler;
+#             else
+                  GC_bool used_si;
+
+                  if (sig == SIGSEGV) {
+                     old_handler = GC_old_segv_handler;
+                     used_si = GC_old_segv_handler_used_si;
+                  } else {
+                     old_handler = GC_old_bus_handler;
+                     used_si = GC_old_bus_handler_used_si;
+                  }
+#             endif
+
+              if (old_handler == (SIG_HNDLR_PTR)SIG_DFL) {
+#                 if !defined(MSWIN32) && !defined(MSWINCE)
+                      if (GC_print_stats)
+                        GC_log_printf("Unexpected segfault at %p\n", addr);
+                      ABORT("Unexpected bus error or segmentation fault");
+#                 else
+                      return(EXCEPTION_CONTINUE_SEARCH);
+#                 endif
+              } else {
+                  /*
+                   * FIXME: This code should probably check if the
+                   * old signal handler used the traditional style and
+                   * if so call it using that style.
+                   */
+#                 if defined(MSWIN32) || defined(MSWINCE)
+                      return((*old_handler)(exc_info));
+#                 else
+                      if (used_si)
+                        ((SIG_HNDLR_PTR)old_handler) (sig, si, raw_sc);
+                      else
+                        /* FIXME: should pass nonstandard args as well. */
+                        ((PLAIN_HNDLR_PTR)old_handler) (sig);
+                      return;
+#                 endif
+              }
+          }
+          UNPROTECT(h, GC_page_size);
+          /* We need to make sure that no collection occurs between       */
+          /* the UNPROTECT and the setting of the dirty bit.  Otherwise   */
+          /* a write by a third thread might go unnoticed.  Reversing     */
+          /* the order is just as bad, since we would end up unprotecting */
+          /* a page in a GC cycle during which it's not marked.           */
+          /* Currently we do this by disabling the thread stopping        */
+          /* signals while this handler is running.  An alternative might */
+          /* be to record the fact that we're about to unprotect, or      */
+          /* have just unprotected a page in the GC's thread structure,   */
+          /* and then to have the thread stopping code set the dirty      */
+          /* flag, if necessary.                                          */
+          for (i = 0; i < divHBLKSZ(GC_page_size); i++) {
+              size_t index = PHT_HASH(h+i);
+
+              async_set_pht_entry_from_index(GC_dirty_pages, index);
+          }
+          /* The write may not take place before dirty bits are read.     */
+          /* But then we'll fault again ...                               */
+#         if defined(MSWIN32) || defined(MSWINCE)
+              return(EXCEPTION_CONTINUE_EXECUTION);
+#         else
+              return;
+#         endif
+      }
+#     if defined(MSWIN32) || defined(MSWINCE)
+        return EXCEPTION_CONTINUE_SEARCH;
+#     else
+        if (GC_print_stats)
+          GC_log_printf("Unexpected segfault at %p\n", addr);
+        ABORT("Unexpected bus error or segmentation fault");
+#     endif
 #   endif
   }
 
@@ -3261,7 +3309,18 @@ GC_INNER void GC_remove_protection(struct hblk *h, word nblocks,
     UNPROTECT(h_trunc, (ptr_t)h_end - (ptr_t)h_trunc);
 }
 
-#if !defined(DARWIN)
+#if defined(DUNE)
+  GC_INNER void GC_dirty_init(void)
+  {
+    GC_dirty_maintained = TRUE;
+    if (GC_page_size % HBLKSIZE != 0) {
+        ABORT("Page size not multiple of HBLKSIZE");
+    }
+
+    dune_register_pgflt_handler(GC_write_fault_handler);
+  }
+
+#elif !defined(DARWIN)
   GC_INNER void GC_dirty_init(void)
   {
 #   if !defined(MSWIN32) && !defined(MSWINCE)
