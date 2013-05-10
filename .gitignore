@@ -54,10 +54,14 @@
 /threadleaktest
 /threadlibs
 /tracetest
+/tmp
 
 /include/private/config.h
 /include/private/config.h.in~
 /include/private/stamp-h1
+/include/config.h
+/include/config.h.in
+/include/stamp-h1
 
 # External library (without trailing slash to allow symlinks):
 /libatomic_ops*
